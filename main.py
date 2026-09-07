@@ -1,49 +1,62 @@
-# 1. Установите дополнительные зависимости
-# pip install aiohttp aiogram-webhook
-
-# 2. Добавьте webhook код:
-
+import os
+import asyncio
+import logging
 from aiohttp import web
 from aiogram import Bot, Dispatcher, types
-from aiogram.webhook.aiohttp_server import SimpleWebhookApp, setup_application
+from aiogram.filters import Command
 
-# Ваш бот
-bot = Bot(token="YOUR_TOKEN")
+# --- Настройка логирования ---
+logging.basicConfig(level=logging.INFO)
+
+# --- Загрузка токена из переменных окружения ---
+TOKEN = os.getenv("TOKEN")
+if not TOKEN:
+    logging.error("❌ Ошибка: Переменная TELEGRAM_TOKEN не найдена!")
+    exit(1)
+
+# --- Инициализация бота ---
+bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# Хендлеры как обычно
-@dp.message()
-async def echo(message: types.Message):
-    await message.answer(message.text)
+# --- Обработчик команды /start ---
+@dp.message(Command("start"))
+async def start_handler(message: types.Message):
+    await message.answer(f"Привет, {message.from_user.full_name}! Бот работает на Render через polling!")
 
-async def on_startup(bot: Bot):
-    # Устанавливаем вебхук при запуске
-    await bot.set_webhook("https://your-render-url.com/webhook")
+# --- Health-check для Render ---
+async def health_check(request):
+    return web.Response(text="Bot is running!")
 
-async def on_shutdown(bot: Bot):
-    # Удаляем вебхук при остановке
-    await bot.delete_webhook()
-
-async def main():
-    # Создаем вебхук приложение
-    webhook_router = SimpleWebhookApp(
-        dispatcher=dp,
-        bot=bot,
-        webhook_path="/webhook",
-        secret_token="your-secret"
-    )
-    
-    # Создаем aiohttp приложение
+# --- Функция для запуска веб-сервера ---
+async def run_webserver():
     app = web.Application()
-    app.router.register_resource(webhook_router)
-    
-    # Добавляем хендлеры для startup/shutdown
-    app.on_startup.append(on_startup)
-    app.on_shutdown.append(on_shutdown)
-    
-    # Запускаем
-    port = int(os.getenv("PORT", 8080))
-    return app
+    app.router.add_get("/", health_check)  # Эндпоинт для проверки
+
+    port = int(os.environ.get("PORT", 8080))  # Порт от Render
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host="0.0.0.0", port=port)
+    await site.start()
+    logging.info(f"✅ Веб-сервер запущен на порту {port}")
+
+    # Бесконечно ждем, чтобы сервер не завершился
+    await asyncio.Event().wait()
+
+# --- Запуск бота в режиме polling ---
+async def run_bot():
+    logging.info("🚀 Бот запускается в режиме polling...")
+    await dp.start_polling(bot)
+
+# --- Главная функция ---
+async def main():
+    # Запускаем бота и веб-сервер параллельно
+    await asyncio.gather(
+        run_bot(),
+        run_webserver()
+    )
 
 if __name__ == "__main__":
-    web.run_app(main(), host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("👋 Бот остановлен.")
