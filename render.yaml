@@ -6,8 +6,8 @@ services:
     plan: free
     region: frankfurt
     buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py
+    startCommand: python -m bot
     envVars:
       - key: BOT_TOKEN
-        value: ваш_токен_бота
+        value: 8838981718:AAGNj7TZxxUXn_dEx7sXvjq72kX9ctWLC9c
         sync: false
