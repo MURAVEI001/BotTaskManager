@@ -1,34 +1,78 @@
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+import os
+
+from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from aiogram.types import Message
-from config import BOT_TOKEN
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# Инициализация бота и диспетчера
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+# Получаем токен
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN не найден в .env файле")
+
+# Создаем экземпляры бота и диспетчера
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Простой обработчик команды /start
-@dp.message(Command("start"))
-async def cmd_start(message: Message):
-    await message.answer("Привет! Я бот-напоминалка. Я пока в разработке.")
+# Обработчик команды /start
+@dp.message(Command('start'))
+async def cmd_start(message: types.Message):
+    await message.answer(
+        "👋 Привет! Я бот-напоминалка.\n\n"
+        "Бот работает и готов к использованию!\n"
+        "Для проверки отправь /help"
+    )
+
+# Обработчик команды /help
+@dp.message(Command('help'))
+async def cmd_help(message: types.Message):
+    await message.answer(
+        "📋 Доступные команды:\n"
+        "/start - Приветствие\n"
+        "/help - Помощь\n"
+        "/ping - Проверка работы бота\n"
+        "/echo <текст> - Повторить текст"
+    )
+
+# Обработчик команды /ping
+@dp.message(Command('ping'))
+async def cmd_ping(message: types.Message):
+    await message.answer("🏓 Pong!")
+
+# Обработчик команды /echo
+@dp.message(Command('echo'))
+async def cmd_echo(message: types.Message):
+    # Получаем текст после команды
+    text = message.text.replace('/echo', '').strip()
+    if text:
+        await message.answer(f"🔊 {text}")
+    else:
+        await message.answer("ℹ️ Напиши текст после команды /echo")
 
 # Обработчик всех остальных сообщений
 @dp.message()
-async def echo(message: Message):
-    await message.answer("Я пока не умею отвечать на это сообщение.")
+async def handle_other_messages(message: types.Message):
+    await message.answer(
+        "🤔 Я не знаю такой команды.\n"
+        "Используй /help для списка команд"
+    )
 
 # Функция запуска бота
 async def main():
-    logger.info("Бот запускается...")
-    await dp.start_polling(bot)
+    logging.info("🚀 Запуск бота...")
+    try:
+        await dp.start_polling(bot)
+    except Exception as e:
+        logging.error(f"❌ Ошибка: {e}")
+    finally:
+        await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
