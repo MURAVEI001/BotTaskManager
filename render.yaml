@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: telegram-bot-reminder
+    runtime: python
+    repo: https://github.com/MURAVEI001/BotTaskManager
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        value: ваш_токен_бота
+        sync: false
