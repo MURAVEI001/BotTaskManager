@@ -5,6 +5,8 @@ import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from dotenv import load_dotenv
+from aiogram.client.session.aiohttp import AiohttpSession
+
 
 # Загружаем переменные окружения
 load_dotenv()
@@ -17,8 +19,11 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не найден в .env файле")
 
+
+proxy_session = AiohttpSession(proxy="socks5://127.0.0.1:1080")
+
 # Создаем экземпляры бота и диспетчера
-bot = Bot(token=BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN, session=proxy_session)
 dp = Dispatcher()
 
 # Обработчик команды /start
